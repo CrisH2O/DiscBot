@@ -1,4 +1,4 @@
-from llm import get_llm_response
+from jarvis.src.ai.llm import get_llm_response
 
 print("="*50)
 print("💻 Jarvis Terminal Local (Escribe 'salir' para terminar)")

@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import audio_bridge_pb2 as audio__bridge__pb2
+import jarvis.src.grpc.audio_bridge_pb2 as audio__bridge__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__

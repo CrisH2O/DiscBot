@@ -6,11 +6,11 @@ import os
 from concurrent import futures
 import json
 
-import audio_bridge_pb2
-import audio_bridge_pb2_grpc
+import jarvis.src.grpc.audio_bridge_pb2 as audio_bridge_pb2
+import jarvis.src.grpc.audio_bridge_pb2_grpc as audio_bridge_pb2_grpc
 from faster_whisper import WhisperModel
-from tts import synthesize
-from llm import get_llm_response
+from jarvis.src.ai.tts import synthesize
+from jarvis.src.ai.llm import get_llm_response
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)

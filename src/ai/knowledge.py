@@ -1,7 +1,7 @@
 """
 Script para poblar la base de datos vectorial de Jarvis.
 Uso:
-    python3 knowledge.py add "Cristhian es el creador de Jarvis y vive en Monterrey."
+    python3 knowledge.py add "xxx es el creador de Jarvis y vive en Monterrey"
     python3 knowledge.py add-file notas.txt
     python3 knowledge.py list
     python3 knowledge.py delete <id>
@@ -12,7 +12,7 @@ Uso:
 import sys
 import os
 from pathlib import Path
-from rag import db, embedding_fn, COLLECTION_NAME
+from jarvis.src.ai.rag import db, embedding_fn, COLLECTION_NAME
 import chromadb
 import uuid
 

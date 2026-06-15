@@ -53,7 +53,7 @@ def _compressor(audio: np.ndarray, threshold: float = 0.3, ratio: float = 2.5) -
     return compressed
 
 def _apply_effects(audio: np.ndarray, sr: int) -> np.ndarray:
-    audio = pyrubberband.pitch_shift(audio, sr, PITCH_SEMITONES)
+    # audio = pyrubberband.pitch_shift(audio, sr, PITCH_SEMITONES)
     audio = _compressor(audio, threshold=0.3, ratio=2.5)
     return audio
 
