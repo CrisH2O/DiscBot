@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 
 DB_PATH         = "./knowledge_db"
 COLLECTION_NAME = "jarvis_knowledge"
-OLLAMA_HOST     = "http://172.27.80.1:11434"
+OLLAMA_HOST     = "localhost:11434"
 EMBED_MODEL     = "nomic-embed-text"  # ollama pull nomic-embed-text
 TOP_K           = 3
 MIN_RELEVANCE   = 0.3

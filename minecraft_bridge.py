@@ -5,7 +5,7 @@ log = logging.getLogger(__name__)
 def obtener_estado() -> dict:
     try:
         res = requests.get(
-            "http://172.27.80.1:4000/estado",
+            "localhost:4000/estado",
             timeout=1
         )
 
@@ -23,7 +23,7 @@ def obtener_estado() -> dict:
 def enviar_orden(accion_json: dict):
     try:
         requests.post(
-            "http://172.27.80.1:4000/ejecutar",
+            "localhost:4000/ejecutar",
             json=accion_json,
             timeout=1
         )
@@ -33,6 +33,6 @@ def enviar_orden(accion_json: dict):
 
 def limpiar_ultimo_plan():
     try:
-        requests.post(f"http://172.27.80.1:4000/limpiar_plan", timeout=2)
+        requests.post(f"localhost:4000/limpiar_plan", timeout=2)
     except Exception as e:
         log.error(f"[BRIDGE ERROR] limpiar_plan: {e}")
