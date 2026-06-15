@@ -6,6 +6,7 @@ Importado por server.py y knowledge.py.
 import logging
 import chromadb
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
+from pathlib import Path
 
 log = logging.getLogger(__name__)
 
@@ -13,7 +14,8 @@ log = logging.getLogger(__name__)
 # Configuración
 # ─────────────────────────────────────────
 
-DB_PATH         = "./knowledge_db"
+ROOT_DIR = Path(__file__).parent.parent.parent
+DB_PATH = str(ROOT_DIR / "knowledge_db")
 COLLECTION_NAME = "jarvis_knowledge"
 OLLAMA_HOST     = "localhost:11434"
 EMBED_MODEL     = "nomic-embed-text"  # ollama pull nomic-embed-text

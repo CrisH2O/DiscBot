@@ -7,7 +7,8 @@ from pathlib import Path
 
 log = logging.getLogger(__name__)
 
-USERS_FILE = Path(__file__).parent / "users.csv"
+ROOT_DIR = Path(__file__).parent.parent.parent
+USERS_FILE = ROOT_DIR / "users.csv"
 
 def get_name(user_id: str) -> str:
     """Retorna el nombre del usuario o su ID si no está registrado."""

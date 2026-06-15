@@ -3,13 +3,13 @@ import json
 import logging
 from groq import Groq
 from dotenv import load_dotenv
-import jarvis.src.ai.minecraft_bridge as minecraft_bridge
+import src.ai.minecraft_bridge as minecraft_bridge
 import re
 import threading
 
 # Importamos tu nuevo módulo especializado
-from jarvis.src.ai.rag import search
-from jarvis.src.ai.users import get_name
+from src.ai.rag import search
+from src.ai.users import get_name
 
 load_dotenv() 
 

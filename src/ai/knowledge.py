@@ -12,7 +12,7 @@ Uso:
 import sys
 import os
 from pathlib import Path
-from jarvis.src.ai.rag import db, embedding_fn, COLLECTION_NAME
+from src.ai.rag import db, embedding_fn, COLLECTION_NAME
 import chromadb
 import uuid
 
