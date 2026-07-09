@@ -1,8 +1,24 @@
+import logging
+import os
+
+# ─────────────────────────────────────────
+# IMPORTANTE: esto debe ir ANTES de importar src.ai.tts.
+# tts.py carga el modelo Pocket TTS al importarse (código a nivel de módulo),
+# y necesita HF_TOKEN ya presente en os.environ para autenticarse contra el
+# repo gated de HuggingFace. Si lo cargamos después del import, ya es tarde.
+# ─────────────────────────────────────────
+
+from dotenv import load_dotenv
+load_dotenv()  # lee el archivo .env y llena os.environ con sus variables
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+log = logging.getLogger(__name__)
+
+log.info("⏳ Iniciando server.py — cargando dependencias (Whisper, Pocket TTS)...")
+
 import grpc
 import io
-import logging
 import tempfile
-import os
 from concurrent import futures
 import json
 
@@ -12,8 +28,7 @@ from faster_whisper import WhisperModel
 from src.ai.tts import synthesize
 from src.ai.llm import get_llm_response
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-log = logging.getLogger(__name__)
+log.info("✅ Todas las dependencias importadas.")
 
 # ─────────────────────────────────────────
 # Configuración
@@ -96,7 +111,7 @@ class AudioServiceServicer(audio_bridge_pb2_grpc.AudioServiceServicer):
             log.info(f"💬 Jarvis: {response}")
 
             # 3. TTS
-            log.info("🔊 Sintetizando voz con Piper...")
+            log.info("🔊 Sintetizando voz con Pocket TTS...")
             audio_pcm = synthesize(response)
 
             if not audio_pcm:

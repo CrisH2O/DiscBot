@@ -1,45 +1,65 @@
-import io
 import logging
-import wave
+import os
+import threading
 from pathlib import Path
 
 import numpy as np
-import pyrubberband
-from scipy import signal
-from piper.voice import PiperVoice
+from huggingface_hub import login
+from pocket_tts import TTSModel
+from dotenv import load_dotenv
 
+load_dotenv()
 log = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────
 # Configuración
 # ─────────────────────────────────────────
 
-MODEL_PATH  = Path(__file__).parent / "modelo" / "es_MX-claude-high.onnx"
-CONFIG_PATH = Path(__file__).parent / "modelo" / "es_MX-claude-high.onnx.json"
-SAMPLE_RATE = 22050
+VOICE_EMBEDDING_PATH = Path(__file__).parent / "modelo" / "voz2.safetensors"
+LANGUAGE = "spanish_24l"  # ajusta si tu voz/idioma es distinto
 
-PITCH_SEMITONES = 2.0   # ajusta al gusto
+# ─────────────────────────────────────────
+# Autenticación con HuggingFace (una sola vez, no interactiva)
+# Necesario porque el modelo base con voice cloning de Pocket TTS
+# está en un repo "gated". Usa una variable de entorno en producción,
+# NO pidas login() interactivo en un servicio corriendo en background.
+# ─────────────────────────────────────────
+
+_hf_token = os.environ.get("HF_TOKEN")
+if _hf_token:
+    login(token=_hf_token)
+else:
+    log.warning(
+        "⚠️  No se encontró HF_TOKEN en el entorno. Si el modelo no está "
+        "cacheado localmente, la carga fallará (repo gated)."
+    )
 
 # ─────────────────────────────────────────
 # Carga del modelo (una sola vez al importar)
 # ─────────────────────────────────────────
 
-log.info("⏳ Cargando modelo Piper...")
-_voice = PiperVoice.load(str(MODEL_PATH), config_path=str(CONFIG_PATH), use_cuda=False)
-log.info("✅ Piper listo.")
+log.info("⏳ Cargando modelo Pocket TTS...")
+_model = TTSModel.load_model(language=LANGUAGE)
+_voice_state = _model.get_state_for_audio_prompt(str(VOICE_EMBEDDING_PATH))
+SAMPLE_RATE = _model.sample_rate
+log.info(f"✅ Pocket TTS listo (sample_rate={SAMPLE_RATE}Hz).")
+
+# Pocket TTS (como la mayoría de modelos de inferencia en PyTorch) no está
+# garantizado como thread-safe para llamadas concurrentes de generate_audio
+# sobre la misma instancia. Si tu bot puede procesar TTS de varios canales de
+# voz al mismo tiempo, protege las llamadas con este lock.
+_inference_lock = threading.Lock()
 
 
 # ─────────────────────────────────────────
 # Efectos
 # ─────────────────────────────────────────
-
-def _highpass(audio: np.ndarray, cutoff: float, sr: int) -> np.ndarray:
-    sos = signal.butter(4, cutoff, btype="high", fs=sr, output="sos")
-    return signal.sosfilt(sos, audio)
-
-def _lowpass(audio: np.ndarray, cutoff: float, sr: int) -> np.ndarray:
-    sos = signal.butter(4, cutoff, btype="low", fs=sr, output="sos")
-    return signal.sosfilt(sos, audio)
+# NOTA: el pitch-shift y el filtrado paso-alto/paso-bajo tenían sentido con
+# Piper porque ahí controlabas el timbre "crudo" del modelo genérico.
+# Con voice cloning, el timbre ya viene definido por tu audio de referencia
+# (diseñado con Qwen3-TTS), así que aplicar pitch-shift adicional puede sonar
+# artificial o desalinear el timbre elegido. Se deja el compresor porque sigue
+# siendo útil para nivelar volumen antes de mandar a Discord.
 
 def _compressor(audio: np.ndarray, threshold: float = 0.3, ratio: float = 2.5) -> np.ndarray:
     compressed = np.copy(audio)
@@ -52,8 +72,8 @@ def _compressor(audio: np.ndarray, threshold: float = 0.3, ratio: float = 2.5) -
         compressed = compressed / peak * 0.9
     return compressed
 
+
 def _apply_effects(audio: np.ndarray, sr: int) -> np.ndarray:
-    # audio = pyrubberband.pitch_shift(audio, sr, PITCH_SEMITONES)
     audio = _compressor(audio, threshold=0.3, ratio=2.5)
     return audio
 
@@ -63,16 +83,19 @@ def _apply_effects(audio: np.ndarray, sr: int) -> np.ndarray:
 # ─────────────────────────────────────────
 
 def _synthesize_to_numpy(text: str) -> np.ndarray:
-    wav_buffer = io.BytesIO()
-    with wave.open(wav_buffer, "wb") as wav_file:
-        _voice.synthesize_wav(text, wav_file)
+    with _inference_lock:
+        audio_tensor = _model.generate_audio(_voice_state, text)
 
-    wav_buffer.seek(0)
-    with wave.open(wav_buffer, "rb") as wav_file:
-        pcm_bytes = wav_file.readframes(wav_file.getnframes())
+    audio = audio_tensor.detach().cpu().numpy()
+    if audio.ndim > 1:
+        # generate_audio puede devolver (1, n_samples) o (canales, n_samples);
+        # nos quedamos con un solo canal (mono) antes de mandarlo a Go.
+        audio = audio.squeeze()
+        if audio.ndim > 1:
+            audio = audio[0]
 
-    audio_int16 = np.frombuffer(pcm_bytes, dtype=np.int16)
-    return audio_int16.astype(np.float32) / 32768.0
+    return audio.astype(np.float32)
+
 
 def _float32_to_pcm16(audio: np.ndarray) -> bytes:
     clipped = np.clip(audio, -1.0, 1.0)
