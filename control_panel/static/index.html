@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jarvis — Panel de Control</title>
+<style>
+  :root {
+    --bg: #0b0e11;
+    --panel: #12171c;
+    --line: #1f2933;
+    --text: #dfe8ec;
+    --dim: #6b7b85;
+    --cyan: #5eead4;
+    --amber: #f5a623;
+    --red: #e5484d;
+    --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 32px 32px;
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+  header {
+    padding: 28px 32px 20px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  header h1 {
+    font-family: var(--mono);
+    font-size: 20px;
+    letter-spacing: 0.08em;
+    margin: 0;
+    color: var(--cyan);
+    text-transform: uppercase;
+  }
+  header span {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--dim);
+  }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 32px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  @media (max-width: 800px) {
+    main { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card h2 {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin: 0 0 16px;
+  }
+  .service-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .service-row:last-child { border-bottom: none; }
+  .service-name { font-size: 14px; }
+  .service-sub { font-family: var(--mono); font-size: 11px; color: var(--dim); margin-top: 2px; }
+  .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--dim);
+    display: inline-block;
+    margin-right: 8px;
+  }
+  .dot.on { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  .dot.off { background: var(--red); }
+  button {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  button:hover { border-color: var(--cyan); color: var(--cyan); }
+  button.stop:hover { border-color: var(--red); color: var(--red); }
+  button:disabled { opacity: 0.4; cursor: default; border-color: var(--line); color: var(--dim); }
+
+  .switch {
+    position: relative;
+    width: 38px; height: 20px;
+    border-radius: 20px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .switch.on { background: rgba(94, 234, 212, 0.15); border-color: var(--cyan); }
+  .switch::after {
+    content: "";
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: all 0.15s ease;
+  }
+  .switch.on::after { left: 20px; background: var(--cyan); }
+
+  .tool-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12px;
+  }
+  .tool-row:last-child { border-bottom: none; }
+  .empty { color: var(--dim); font-family: var(--mono); font-size: 12px; }
+
+  #chat-log {
+    height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .msg { max-width: 85%; padding: 8px 12px; border-radius: 8px; line-height: 1.4; }
+  .msg.user { align-self: flex-end; background: rgba(94,234,212,0.1); border: 1px solid rgba(94,234,212,0.3); }
+  .msg.jarvis { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); }
+  .msg .who { font-family: var(--mono); font-size: 10px; color: var(--dim); display: block; margin-bottom: 3px; }
+
+  .chat-input { display: flex; gap: 8px; }
+  .chat-input input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+  .chat-input input:focus { outline: none; border-color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>◈ Jarvis</h1>
+  <span>panel de control local</span>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2>Servicios</h2>
+    <div id="services"></div>
+  </div>
+
+  <div class="card">
+    <h2>Herramientas MCP</h2>
+    <div id="tools"><p class="empty">Conectá el servidor MCP para ver las tools disponibles.</p></div>
+  </div>
+
+  <div class="card full">
+    <h2>Prueba local</h2>
+    <div id="chat-log"></div>
+    <div class="chat-input">
+      <input id="chat-text" type="text" placeholder="Escribile algo a Jarvis..." />
+      <button id="chat-send">Enviar</button>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const SERVICES = [
+  { key: "discord", label: "Bot de Discord", sub: "server.py + bot Go" },
+  { key: "youtube", label: "Live de YouTube", sub: "src.ai.live" },
+  { key: "mcp", label: "Servidor MCP", sub: "mcp/index.js" },
+];
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  return res.json();
+}
+
+function renderServices(status) {
+  const el = document.getElementById("services");
+  el.innerHTML = "";
+  for (const s of SERVICES) {
+    const running = !!status[s.key];
+    const row = document.createElement("div");
+    row.className = "service-row";
+    row.innerHTML = `
+      <div>
+        <div class="service-name"><span class="dot ${running ? "on" : "off"}"></span>${s.label}</div>
+        <div class="service-sub">${s.sub}</div>
+      </div>
+      <button class="${running ? "stop" : ""}" data-key="${s.key}" data-action="${running ? "stop" : "start"}">
+        ${running ? "Detener" : "Encender"}
+      </button>
+    `;
+    el.appendChild(row);
+  }
+  el.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      const { key, action } = btn.dataset;
+      await api(`/api/service/${key}/${action}`, { method: "POST" });
+      await refreshStatus();
+      btn.disabled = false;
+    });
+  });
+}
+
+async function refreshStatus() {
+  const status = await api("/api/status");
+  renderServices(status);
+}
+
+async function refreshTools() {
+  const el = document.getElementById("tools");
+  const data = await api("/api/tools");
+  if (!data.ok) {
+    el.innerHTML = `<p class="empty">${data.error}</p>`;
+    return;
+  }
+  if (data.tools.length === 0) {
+    el.innerHTML = `<p class="empty">El Gateway no reporta tools.</p>`;
+    return;
+  }
+  el.innerHTML = "";
+  for (const t of data.tools) {
+    const row = document.createElement("div");
+    row.className = "tool-row";
+    row.innerHTML = `
+      <span>${t.name}</span>
+      <div class="switch ${t.enabled ? "on" : ""}" data-name="${t.name}" data-enabled="${t.enabled}"></div>
+    `;
+    el.appendChild(row);
+  }
+  el.querySelectorAll(".switch").forEach(sw => {
+    sw.addEventListener("click", async () => {
+      const name = sw.dataset.name;
+      const newVal = sw.dataset.enabled !== "true";
+      await api(`/api/tools/${encodeURIComponent(name)}/toggle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: newVal }),
+      });
+      sw.classList.toggle("on", newVal);
+      sw.dataset.enabled = newVal;
+    });
+  });
+}
+
+function appendMsg(who, text) {
+  const log = document.getElementById("chat-log");
+  const div = document.createElement("div");
+  div.className = `msg ${who === "Vos" ? "user" : "jarvis"}`;
+  div.innerHTML = `<span class="who">${who}</span>${text}`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+async function sendChat() {
+  const input = document.getElementById("chat-text");
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = "";
+  appendMsg("Vos", text);
+
+  const data = await api("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+
+  if (data.ok) {
+    appendMsg("Jarvis", data.response);
+  } else {
+    appendMsg("Jarvis", `⚠️ ${data.error}`);
+  }
+}
+
+document.getElementById("chat-send").addEventListener("click", sendChat);
+document.getElementById("chat-text").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendChat();
+});
+
+refreshStatus();
+refreshTools();
+setInterval(refreshStatus, 4000);
+setInterval(refreshTools, 8000);
+</script>
+
+</body>
+</html>

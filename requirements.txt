@@ -5,10 +5,11 @@ faster-whisper==1.2.1
 groq==1.4.0
 chromadb==1.5.9
 
-piper-tts==1.4.2
 numpy
-scipy
 soundfile
+fastapi
+uvicorn
+scipy
 
 python-dotenv
 requests

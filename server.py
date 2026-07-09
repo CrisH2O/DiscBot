@@ -27,6 +27,7 @@ import src.grpc.audio_bridge_pb2_grpc as audio_bridge_pb2_grpc
 from faster_whisper import WhisperModel
 from src.ai.tts import synthesize
 from src.ai.llm import get_llm_response
+from src.ai.timing import LatencyTracker
 
 log.info("✅ Todas las dependencias importadas.")
 
@@ -83,17 +84,21 @@ class AudioServiceServicer(audio_bridge_pb2_grpc.AudioServiceServicer):
             tmp.write(audio_buffer.read())
             tmp_path = tmp.name
 
+        # Medidor de latencia end-to-end para este turno. Se descarta si el
+        # audio no contiene voz o no trae la wake word (no hubo turno real).
+        tracker = LatencyTracker(label=f"turno:{user_id}")
+
         try:
             # 1. Transcribir
-            segments, _ = self.model.transcribe(
-                tmp_path,
-                language=LANGUAGE,
-                beam_size=5,
-                vad_filter=True,
-                vad_parameters=dict(min_silence_duration_ms=300),
-            )
-
-            transcript = " ".join(s.text.strip() for s in segments).strip()
+            with tracker.stage("STT"):
+                segments, _ = self.model.transcribe(
+                    tmp_path,
+                    language=LANGUAGE,
+                    beam_size=5,
+                    vad_filter=True,
+                    vad_parameters=dict(min_silence_duration_ms=300),
+                )
+                transcript = " ".join(s.text.strip() for s in segments).strip()
 
             if not transcript:
                 log.info("🔇 Sin voz detectada.")
@@ -105,14 +110,18 @@ class AudioServiceServicer(audio_bridge_pb2_grpc.AudioServiceServicer):
 
             log.info(f"🎤 [{user_id}]: {transcript}")
 
-            # 2. LLM + RAG
+            # 2. LLM + RAG (el propio agente desglosa esta etapa en
+            #    prompt_build / mcp_total / groq_llm / tool:<nombre> dentro
+            #    del mismo tracker, así el resumen final queda detallado)
             log.info("🤖 Consultando LLM...")
-            response = get_llm_response(user_id, transcript)
+            with tracker.stage("LLM_total"):
+                response = get_llm_response(user_id, transcript, tracker=tracker)
             log.info(f"💬 Jarvis: {response}")
 
             # 3. TTS
             log.info("🔊 Sintetizando voz con Pocket TTS...")
-            audio_pcm = synthesize(response)
+            with tracker.stage("TTS"):
+                audio_pcm = synthesize(response)
 
             if not audio_pcm:
                 log.warning("⚠️  TTS no produjo audio, enviando solo texto.")
@@ -131,6 +140,10 @@ class AudioServiceServicer(audio_bridge_pb2_grpc.AudioServiceServicer):
 
         finally:
             os.unlink(tmp_path)
+            # Resumen end-to-end del turno completo (STT + LLM + tools + TTS).
+            # Si el turno se cortó antes de tiempo (sin voz / sin wake word),
+            # el resumen queda vacío o parcial, lo cual también es información útil.
+            tracker.log_summary()
 
 # ─────────────────────────────────────────
 # Main
